@@ -50,6 +50,26 @@ endif
 
 ;--- DOS memory functions ( ah=01 )
 
+;--- unsigned short __dpmi_allocate_dos_memory(int _paras, int *_selector);
+;--- Returns real-mode segment on success, 0xFFFF on failure.
+;--- *_selector receives the PM selector for the block.
+
+__dpmi_allocate_dos_memory proc c public uses ebx dwParas:dword, pSelector:ptr dword
+	mov ebx, dwParas
+	mov ax, 0100h
+	int 31h
+	jc @F
+	movzx eax, ax         ; AX = RM segment
+	mov ecx, pSelector
+	movzx edx, dx         ; DX = selector
+	mov [ecx], edx
+	ret
+@@:
+	mov eax, 0FFFFh
+	ret
+	align 4
+__dpmi_allocate_dos_memory endp
+
 __dpmi_free_dos_memory proc c public dwSelector:dword
 	mov edx, dwSelector
 	mov ax,101h

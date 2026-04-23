@@ -17,6 +17,7 @@
 #define PT0V86    1   /* 1=support read access to v86 page table 0 */
 #define HOSTRT    0   /* 0=protect SB irq, so it's not modified by programs; must match setting in SBISR.ASM */
 #define IRQONPORTACC 0 /* v2.0: 1=allow hw sound IRQs when IF==0 */
+#define CDAUDIOENABLED	1	/* 1=support CD digital audio via modified SHSUCDX */
 
 #define HW_FREQ_DEFAULT 22050 /* default value for /F */
 #define HW_CHANNELS 2         /* must be 2 */
@@ -63,6 +64,8 @@ struct globalvars {
 	int period_size;
 	int buffers; /* v2.0: hardware sound buffers ( of size period_size ) */
 	int buffer_protection; /* v2.0: size in bytes of hardware buffer protection */
+	int cda;
+        int cdvol;
 #ifdef _DEBUG
 	char *logfile;
 	int logmode;
