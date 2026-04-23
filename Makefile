@@ -92,7 +92,8 @@ OBJFILES = &
 	$(OUTD)/stackio.obj		$(OUTD)/stackisr.obj	$(OUTD)/sbisr.obj		$(OUTD)/int31.obj		$(OUTD)/rmwrap.obj		$(OUTD)/mixer.obj &
 	$(OUTD)/hapi.obj		$(OUTD)/dprintf.obj		$(OUTD)/vioout.obj		$(OUTD)/dpmi.obj		$(OUTD)/uninst.obj		$(OUTD)/getenv.obj &
 	$(OUTD)/malloc.obj		$(OUTD)/sbrk.obj		$(OUTD)/fileacc.obj		$(OUTD)/logfile.obj		$(OUTD)/strtol.obj		$(OUTD)/_matherr.obj &
-	$(OUTD)/dpmiisr.obj
+	$(OUTD)/dpmiisr.obj &
+	$(OUTD)/cdaudio.obj
 	
 C_OPT_FLAGS=-q -mf -oxa -ecc -5s -fp5 -fpi87 -wcd=111
 # OW's wpp386 doesn't like the -ecc option
@@ -188,6 +189,7 @@ $(OUTD)/vioout.obj:    src\vioout.asm
 $(OUTD)/virq.obj:      src\virq.c
 $(OUTD)/vmpu.obj:      src\vmpu.c
 $(OUTD)/vsb.obj:       src\vsb.c
+$(OUTD)/cdaudio.obj: src\cdaudio.c
 !ifndef NOFM
 $(OUTD)/dbopl.obj:     src\dbopl.cpp
 $(OUTD)/vopl3.obj:     src\vopl3.cpp

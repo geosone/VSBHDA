@@ -63,6 +63,8 @@ typedef union {
 
 int __dpmi_get_segment_base_address(int _selector, unsigned long *_addr);
 int __dpmi_set_segment_limit(int _selector, unsigned long _limit);
+
+unsigned short __dpmi_allocate_dos_memory(int _paras, int *_selector);
 int __dpmi_free_dos_memory(int _selector);
 int __dpmi_simulate_real_mode_interrupt(int _vector, __dpmi_regs *_regs);
 int __dpmi_simulate_real_mode_procedure_retf(__dpmi_regs *_regs);

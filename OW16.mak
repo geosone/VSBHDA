@@ -67,7 +67,8 @@ OBJFILES = &
 	$(OUTD)/stackio.obj		$(OUTD)/stackisr.obj	$(OUTD)/sbisr.obj		$(OUTD)/int31.obj		$(OUTD)/rmwrap.obj		$(OUTD)/mixer.obj &
 	$(OUTD)/hapi.obj		$(OUTD)/dprintf.obj		$(OUTD)/vioout.obj		$(OUTD)/dpmi.obj		$(OUTD)/dpmiisr.obj		$(OUTD)/uninst.obj &
 	$(OUTD)/auimp16.obj		$(OUTD)/ldmod16.obj		$(OUTD)/sbrk.obj		$(OUTD)/malloc.obj		$(OUTD)/rte200.obj &
-	$(OUTD)/fileacc.obj		$(OUTD)/logfile.obj		$(OUTD)/getenv.obj		$(OUTD)/strtol.obj		$(OUTD)/_matherr.obj
+	$(OUTD)/fileacc.obj		$(OUTD)/logfile.obj		$(OUTD)/getenv.obj		$(OUTD)/strtol.obj		$(OUTD)/_matherr.obj &
+	$(OUTD)/cdaudio.obj
 
 OBJFILES2 = &
 	$(OUTD)/ac97mix.obj		$(OUTD)/au_cards.obj &
@@ -186,6 +187,7 @@ $(OUTD)/vioout.obj:    src\vioout.asm
 $(OUTD)/virq.obj:      src\virq.c
 $(OUTD)/vmpu.obj:      src\vmpu.c
 $(OUTD)/vsb.obj:       src\vsb.c
+$(OUTD)/cdaudio.obj: src\cdaudio.c
 !ifndef NOFM
 $(OUTD)/dbopl.obj:     src\dbopl.cpp
 

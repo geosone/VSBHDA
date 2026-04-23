@@ -17,6 +17,7 @@
 #include "VSB.H"
 #include "PTRAP.H"
 #include "ADPCM.H"
+#include "CDAUDIO.H"
 
 #ifdef _DEBUG
 //#define SNDISRLOG /* enables sound interrupt logs */
@@ -724,6 +725,41 @@ static int SNDISR_Interrupt( void )
         fpu_restore( fpu_buffer );
     }
 #endif
+
+#if CDAUDIOENABLED
+	if (mod_shsucdx_detected) {
+        poll_shsucdx_mailbox();
+		if (xms_available)
+			xms_read_cycle();
+		else
+			check_and_fill_audio_buffer();
+    }
+
+    /*	Mix CD audio and digital audio with simple addition. Can't think of a faster right now */
+    if (mod_shsucdx_detected && cd_audio_playstate.state == AUDIO_PLAYING) {
+	/* If the digital CD music-enabled SHSUCDX is found, and CD audio is supposed to be playing */
+		if (!audio_mixing_active && audio_buffer.fill_level >= AUDIO_BUFFER_PREFILL_BYTES)
+		/* Mix CD audio with regular digital only if audio buffer fill level exceeds specified threshold */
+			audio_mixing_active = 1;
+	}
+	if (audio_mixing_active && audio_buffer.fill_level > 0) {
+		uint32_t need = (uint32_t)nSamples * 4;  /* stereo 16-bit */
+		int16_t *audio_tmp = isr.pPCM + nSamples * 2;
+		int32_t mixed;
+        int cdvol = gvars.cdvol;
+        
+		uint32_t got = audio_buffer_read(&audio_buffer, (uint8_t *)audio_tmp, need);
+		xms_bytes_mixed += got;
+		if (got < need)
+			memset((uint8_t *)audio_tmp + got, 0, need - got);
+		for (i=0; i < nSamples * 2; i++) {
+            int32_t cd_sample = (int32_t)audio_tmp[i] * cdvol / 9;
+            mixed = (int32_t)isr.pPCM[i] + cd_sample;
+			isr.pPCM[i] = (mixed > 32767) ? 32767 : (mixed < -32768) ? -32768 : (int16_t)mixed;
+		}
+    }
+#endif
+
 #ifdef VSBVXD
     vxdwave_mix( isr.pPCM, nSamples ); /* VSBVXD: wave output of the Windows driver */
 #endif

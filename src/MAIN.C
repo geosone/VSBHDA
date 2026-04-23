@@ -26,6 +26,7 @@
 #include "SNDISR.H"
 #include "VMPU.H"
 #include "VERSION.H"
+#include "CDAUDIO.H"
 
 #include "AU.H"
 
@@ -35,6 +36,7 @@
 #define TYPE_DEFAULT 4
 #define HDMA_DEFAULT -1
 #define VOL_DEFAULT 7
+#define CDVOL_DEFAULT 7
 
 bool _InstallInt31( struct globalvars * );
 bool _UninstallInt31( void );
@@ -112,6 +114,10 @@ VOICES_DEFAULT, /* /MV */
 #endif
 0, /* CF */
 HW_FREQ_DEFAULT,  /* frequency */
+0, 0, 0, /* pin, device, period_size */
+0, 0, /* buffers, buffer_protection */
+0, /* CDA */
+CDVOL_DEFAULT, /* /CV */
 };
 
 static const struct {
@@ -151,6 +157,8 @@ static const struct {
     "MV",  "Set voice limit [0-256, def 64]", &gvars.voices,
 #endif
     "CF",  "Set compatibility flags [def 0]", &gvars.compatflags,
+    "CDA", "Enable CD audio [1=modified SHSUCDX, def 0]", &gvars.cda,
+    "CV",  "Set CD audio volume [0-9, def 7]", &gvars.cdvol,
 #ifdef _DEBUG
     "LF:", "Set log file name", (int *)&gvars.logfile,
     "LM",  "Set log mode [0-2, def 0]", &gvars.logmode,
@@ -236,6 +244,9 @@ int LogfileExit( void )
 static void ReleaseRes( void )
 //////////////////////////////
 {
+
+	if(gvars.cda == 1)
+		free_all_buffers();
 #if VMPU
 	VMPU_Exit();
 #endif
@@ -431,6 +442,10 @@ int main(int argc, char* argv[])
         printf("Error: Invalid volume %d\n", gvars.vol );
         return(1);
     }
+    if( gvars.cdvol < 0 || gvars.cdvol > 9) {
+        printf("Error: Invalid CD volume %d\n", gvars.cdvol );
+        return(1);
+    }
     if( gvars.buffsize < 1) {
         printf("Error: Invalid PCM buffer size %d\n", gvars.buffsize );
         return(1);
@@ -562,6 +577,8 @@ int main(int argc, char* argv[])
     printf("Type=%d\n", gvars.type );
     if ( gvars.vol != VOL_DEFAULT )
         printf("Volume: %u\n", gvars.vol );
+    if ( gvars.cdvol != CDVOL_DEFAULT )
+        printf("CD Volume: %u\n", gvars.cdvol );
 #if SLOWDOWN
     if ( gvars.slowdown  )
         printf("Slowdown factor: %u\n", gvars.slowdown );
@@ -592,6 +609,19 @@ int main(int argc, char* argv[])
         printf("Unable to install IO port traps\n");
         goto errexit;
     }
+
+#if CDAUDIOENABLED
+    if (gvars.cda) {
+        if (check_modified_shsucdx() == 0) {
+            if (cdaudio_alloc_buffers() == 0)
+                printf("CD Audio: Enabled\n");
+            else
+                printf("Buffer allocation failed, CD audio disabled\n");
+        } else {
+            printf("Modified SHSUCDX not found, CD audio disabled\n");
+        }
+    }
+#endif
 
     if( gm.bISR && ( gm.bQemm || (!gvars.rm) ) && ( gm.bHdpmi || (!gvars.pm) ) ) {
         uint32_t psp;
@@ -625,3 +655,4 @@ errexit:
     printf("Error: VSBHDA not installed.\n");
     return 1;
 }
+
