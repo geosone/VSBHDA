@@ -512,8 +512,23 @@ int cdaudio_alloc_buffers(void)
     return 0;
 }
 
+/* SHSUCDX /A:AUTO sends PLAY to the drive (analog) again */
+void cdaudio_unregister(void)
+{
+    __dpmi_regs r;
+    if (!mod_shsucdx_detected)
+        return;
+    memset(&r, 0, sizeof(r));
+    r.x.ax = 0x15FF;
+    r.x.bx = CDDA_MAGIC;
+    r.x.cx = 3;
+    __dpmi_simulate_real_mode_interrupt(0x2F, &r);
+    mod_shsucdx_detected = 0;
+}
+
 void free_all_buffers(void)
 {
+    cdaudio_unregister();
 	/* Diagnostics */
 	/*
 	if(xms_available) {

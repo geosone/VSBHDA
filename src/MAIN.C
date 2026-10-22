@@ -615,8 +615,10 @@ int main(int argc, char* argv[])
         if (check_modified_shsucdx() == 0) {
             if (cdaudio_alloc_buffers() == 0)
                 printf("CD Audio: Enabled\n");
-            else
+            else {
+                cdaudio_unregister();
                 printf("Buffer allocation failed, CD audio disabled\n");
+            }
         } else {
             printf("Modified SHSUCDX not found, CD audio disabled\n");
         }

@@ -94,6 +94,7 @@ void check_and_fill_audio_buffer(void);
 /* Allocate shared slot (conventional memory) and audio buffer (extended memory).
    Call after check_modified_shsucdx() succeeds. Returns 0 on success, -1 on failure. */
 int cdaudio_alloc_buffers(void);
+void cdaudio_unregister(void);
 
 /* Free shared slot buffer and CD audio buffers */
 void free_all_buffers(void);
