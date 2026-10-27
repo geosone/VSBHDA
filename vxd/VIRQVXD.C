@@ -37,6 +37,7 @@ void VIRQ_Invoke( void )
 /* virtual EOI of the SB IRQ by a VM */
 void vsb_virt_eoi( unsigned irqh, unsigned vm )
 {
+	irqvm = 0;
 	vxd_clear_int_request( irqh, vm );
 }
 
@@ -48,5 +49,23 @@ void VIRQ_WaitForSndIrq( void )
 		VIRQ_Invoke();
 }
 
-void VIRQ_Check( void ) { }
+/* withdraw a requested SB IRQ that the VM hasn't taken yet: a real SB
+ * drops its IRQ line when the program acknowledges the interrupt or resets
+ * the DSP.  Without this, the request of a program that ended without
+ * acknowledging its last interrupt stays pending in the VM, and the next
+ * program gets it as soon as it unmasks the IRQ - possibly before it is
+ * ready for it. */
+void virq_clear( void )
+{
+	if ( sbirqh && irqvm ) {
+		vxd_clear_int_request( sbirqh, irqvm );
+		irqvm = 0;
+	}
+}
+
+/* DSP reset (VSB.C) */
+void VIRQ_Check( void )
+{
+	virq_clear();
+}
 void VPIC_Init( uint8_t hwirq ) { (void)hwirq; }

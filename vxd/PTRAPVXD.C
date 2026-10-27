@@ -10,6 +10,7 @@
 
 #include "CONFIG.H"
 #include "PTRAP.H"
+#include "VSB.H"
 #include "VXDLIB.H"
 
 extern struct globalvars gvars;
@@ -23,6 +24,7 @@ static struct {
 static int ntraps;
 
 extern unsigned vsb_owner_vm;   /* VM using the emulated SB (VIRQVXD.C) */
+void virq_clear( void );        /* VIRQVXD.C */
 
 /* ports start + n for each bit n set in portmap */
 int PTRAP_AddRange( int start, unsigned int portmap, const PORT_TRAP_HANDLER *handlers )
@@ -65,6 +67,10 @@ uint32_t vsb_io( unsigned vm, unsigned type, unsigned port, uint32_t data )
 	for ( i = 0; i < ntraps; i++ )
 		if ( traps[i].port == port ) {
 			uint8_t v = traps[i].handler( port, (uint8_t)data, (type & IOT_OUTPUT) ? TRAPF_OUT | TRAPF_IF : TRAPF_IF );
+			/* IRQ acknowledged and none pending: the SB drops its IRQ line */
+			if ( !( type & IOT_OUTPUT ) && ( port == (unsigned)gvars.base + 0xE || port == (unsigned)gvars.base + 0xF ) &&
+				 !VSB_GetIRQStatus() )
+				virq_clear();
 			return ( type & IOT_OUTPUT ) ? data : v;
 		}
 	return ( type & IOT_OUTPUT ) ? ( outp( port, data ), data ) : inp( port );

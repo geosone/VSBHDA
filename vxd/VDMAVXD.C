@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <conio.h>
 
 #include "CONFIG.H"
 #include "DMA.H"
@@ -36,6 +37,84 @@ extern unsigned vsb_owner_vm;
  * bits of the count, so the count written back must stay below 64 kB. */
 #define DMAST_UNMASKED 0x04
 
+/* address and count register ports of a channel */
+static void dma_ports( int channel, unsigned *addr, unsigned *count )
+{
+	if ( channel < 4 ) {
+		*addr = channel * 2;
+		*count = channel * 2 + 1;
+	} else {
+		*addr = 0xC0 + ( channel - 4 ) * 4;
+		*count = 0xC2 + ( channel - 4 ) * 4;
+	}
+}
+
+/* VDMAD answers a VM reading the address/count registers of a virtualized
+ * channel from the physical DMA controller, not from the virtual state set
+ * with VDMAD_Set_Virt_State (WfW 3.11 on real hardware: the idle channel of
+ * the chipset always reads 0, so a program that polls the DMA position -
+ * e.g. MikMod - never saw its auto-init transfer advance and kept playing
+ * the first buffer).  The emulation therefore writes its progress into the
+ * registers of the physical channel, which stays masked - nothing is
+ * transferred.
+ * This runs in the sound hardware interrupt, possibly between the two byte
+ * reads of a VM: the byte flip-flop of the controller must be left as it
+ * was, else the VM reads the bytes swapped.  The flip-flop can't be read,
+ * but the registers hold what was written last, so a byte read tells its
+ * state. */
+static uint32_t irqsave( void );
+#pragma aux irqsave = "pushfd" "pop eax" "cli" value [eax]
+static void irqrestore( uint32_t );
+#pragma aux irqrestore = "push eax" "popfd" parm [eax]
+
+static struct {
+	uint16_t addr, count;    /* register contents written last */
+	uint8_t valid;
+} hw[8];
+
+/* state of the flip-flop (1 = high byte next); reading toggles it */
+static int flipflop( int channel, unsigned ap, unsigned cp )
+{
+	if ( !hw[channel].valid )
+		return 0;
+	if ( ( hw[channel].count & 0xFF ) != ( hw[channel].count >> 8 ) )
+		return inp( cp ) == ( hw[channel].count >> 8 );
+	if ( ( hw[channel].addr & 0xFF ) != ( hw[channel].addr >> 8 ) )
+		return inp( ap ) == ( hw[channel].addr >> 8 );
+	return 0;   /* both registers have equal bytes: can't tell (rare), assume low */
+}
+
+static void phys_update( int channel, const struct vchan *c )
+{
+	uint32_t a = c->vaddr + c->pos - CB_HIGH_LINEAR( c->vm );  /* VM's address */
+	uint32_t left = c->total - c->pos;                          /* bytes */
+	unsigned ap, cp, cnt;
+	uint32_t fl;
+	int ff;
+
+	dma_ports( channel, &ap, &cp );
+	if ( channel < 4 ) {
+		cnt = left ? left - 1 : 0xFFFF;
+	} else {
+		cnt = left ? left / 2 - 1 : 0xFFFF;
+		a >>= 1;                        /* word address */
+	}
+	fl = irqsave();
+	ff = flipflop( channel, ap, cp );
+	outp( channel < 4 ? 0x0A : 0xD4, 4 | ( channel & 3 ) );   /* keep the channel masked */
+	outp( channel < 4 ? 0x0C : 0xD8, 0 );                    /* clear the flip-flop */
+	outp( ap, a );
+	outp( ap, a >> 8 );
+	outp( cp, cnt );
+	outp( cp, cnt >> 8 );
+	hw[channel].addr = a;
+	hw[channel].count = cnt;
+	hw[channel].valid = 1;
+	if ( ff )
+		inp( cp );                      /* back to "high byte next" */
+	irqrestore( fl );
+}
+
 void vsb_dma_changed( unsigned dmah, unsigned vm )
 {
 	struct dmastate st;
@@ -58,6 +137,8 @@ void vsb_dma_changed( unsigned dmah, unsigned vm )
 		c->total = st.count & 0x1FFFF;
 		c->pos = 0;
 		c->complete = 0;
+		if ( c->total )
+			phys_update( channel, c );
 	}
 	c->mode = st.mode;
 	if ( !c->masked )
@@ -107,6 +188,7 @@ uint32_t VDMA_UpdatePos( int channel, uint32_t addbytes )
 	c->updating = 1;
 	vxd_set_dma_state( c->handle, c->vm, &st );
 	c->updating = 0;
+	phys_update( channel, c );
 	return c->pos;
 }
 
